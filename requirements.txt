@@ -2,3 +2,6 @@ streamlit
 fastapi
 uvicorn
 pandas
+streamlit
+streamlit_autorefresh
+
