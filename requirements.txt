@@ -1,8 +1,6 @@
 streamlit==1.26.0
 streamlit_autorefresh==0.1.0
-pandas==2.1.1
-numpy==1.26.0
-psycopg2-binary==2.9.9   # se usi PostgreSQL
-sqlalchemy==2.1.1
+
+
 
 
