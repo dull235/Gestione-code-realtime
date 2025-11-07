@@ -173,7 +173,7 @@ def main():
 
         col1, col2 = st.columns(2)
         if col1.button("🔄 Aggiorna ora"):
-            st.experimental_rerun()
+            st.rerun()
         if col2.button("❌ Chiudi ticket locale"):
             st.session_state.ticket_id = None
             st.session_state.modalita = "iniziale"
