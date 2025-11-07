@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🚛 Tracciamento Autista</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f4f8;
+      text-align: center;
+      padding-top: 40px;
+    }
+    button {
+      background-color: #1976d2;
+      color: white;
+      padding: 15px 25px;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+    }
+    #status { margin-top: 20px; color: #333; }
+  </style>
+</head>
+<body>
+  <h2>🚛 Invio Posizione Autista</h2>
+  <p>Inserisci il tuo <b>ID Ticket</b> e consenti il GPS.</p>
+  <input id="ticket" placeholder="ID Ticket" style="padding:8px; width:200px"><br><br>
+  <button id="start">Avvia Tracciamento</button>
+  <div id="status"></div>
+
+  <script>
+    document.getElementById('start').addEventListener('click', () => {
+      const ticket = document.getElementById('ticket').value.trim();
+      if (!ticket) {
+        alert("Inserisci un ID ticket!");
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert("Geolocalizzazione non supportata!");
+        return;
+      }
+
+      document.getElementById('status').innerText = "📡 Tracciamento attivo...";
+
+      navigator.geolocation.watchPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          fetch("https://TUO_RENDER_URL.onrender.com/update_position", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ticket_id: ticket, lat: lat, lon: lon })
+          });
+          document.getElementById('status').innerText =
+            `✅ Ultima posizione inviata: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        },
+        err => {
+          document.getElementById('status').innerText = "❌ Errore GPS: " + err.message;
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+    });
+  </script>
+</body>
+</html>
