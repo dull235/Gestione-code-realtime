@@ -3,24 +3,21 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from threading import Thread
 import uvicorn
-from streamlit_autorefresh import st_autorefresh
 from database import aggiorna_posizione, get_posizioni_attuali, get_notifiche
 import pandas as pd
 
 # ========== FASTAPI BACKEND ==========
-
 api = FastAPI()
 
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # puoi restringere ai tuoi domini
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @api.post("/update_position")
 async def update_position(request: Request):
-    """Riceve posizione GPS da tracker.html"""
     data = await request.json()
     ticket_id = data.get("ticket_id")
     lat = data.get("lat")
@@ -36,19 +33,14 @@ async def update_position(request: Request):
 def run_api():
     uvicorn.run(api, host="0.0.0.0", port=8000)
 
-# Avvio API in thread parallelo
 Thread(target=run_api, daemon=True).start()
 
 # ========== STREAMLIT FRONTEND ==========
-
 st.set_page_config(page_title="Gestione Code - Ufficio", layout="wide")
-
 st.title("🚛 Gestione Code - Monitoraggio Autisti")
 
-st_autorefresh(interval=10000, key="refresh")
-
 try:
-    dati = get_posizioni_attuali()  # funzione DB: restituisce [ {lat, lon, autista, targa}, ... ]
+    dati = get_posizioni_attuali()
     if dati:
         df = pd.DataFrame(dati)
         st.map(df)
@@ -66,3 +58,6 @@ try:
         st.write(f"🕓 {n['Data']}: **{n['Testo']}**")
 except:
     st.info("Nessuna notifica recente.")
+
+# Aggiornamento automatico
+st.experimental_rerun()
