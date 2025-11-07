@@ -47,7 +47,7 @@
         pos => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
-          fetch("https://TUO_RENDER_URL.onrender.com/update_position", {
+          fetch("https://gestione-code-realtime.onrender.com", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ticket_id: ticket, lat: lat, lon: lon })
@@ -64,3 +64,4 @@
   </script>
 </body>
 </html>
+
