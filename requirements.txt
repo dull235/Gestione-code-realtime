@@ -1,7 +1,8 @@
-streamlit>=1.26
-fastapi
-uvicorn
-pandas
+streamlit==1.30.0
+supabase==1.0.0
+pandas==2.1.0
+requests==2.31.0
+
 
 
 
