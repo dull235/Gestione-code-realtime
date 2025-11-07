@@ -65,7 +65,7 @@ def main():
     refresh_interval = 10  # secondi
     if time.time() - st.session_state.last_refresh_time > refresh_interval:
         st.session_state.last_refresh_time = time.time()
-        st.experimental_rerun()
+        st.rerun()
 
     # --- Geolocalizzazione via JS se mancante ---
     st.write("DEBUG:", st.session_state.posizione_attuale)
