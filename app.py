@@ -27,31 +27,31 @@ async def update_position(request: Request):
         return {"status": "error", "message": "Dati mancanti"}
     try:
         aggiorna_posizione(ticket_id, lat, lon)
-        return {"status": "ok"}
+        return {"status": "ok", "ticket_id": ticket_id}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 def run_api():
     uvicorn.run(api, host="0.0.0.0", port=8000)
 
-# Avvio API in thread parallelo
+# Avvia l’API in thread parallelo
 Thread(target=run_api, daemon=True).start()
 
 # ========== STREAMLIT FRONTEND ==========
 st.set_page_config(page_title="Gestione Code - Ufficio", layout="wide")
-st.title("🚛 Gestione Code - Monitoraggio Autisti")
+st.title("🏢 Gestione Code - Monitoraggio Autisti")
 
-# Loop di refresh automatico ogni 10 secondi
-refresh_interval = 10  # secondi
+# Refresh automatico ogni 10 secondi
+refresh_interval = 10
 last_refresh_time = st.session_state.get("last_refresh_time", 0)
 
 if time.time() - last_refresh_time > refresh_interval:
     st.session_state["last_refresh_time"] = time.time()
     st.experimental_rerun()
 
-# Mostra posizioni attuali
+# Mostra posizioni
 try:
-    dati = get_posizioni_attuali()  # restituisce lista di dict {lat, lon, autista, targa}
+    dati = get_posizioni_attuali()
     if dati:
         df = pd.DataFrame(dati)
         st.map(df)
