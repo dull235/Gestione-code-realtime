@@ -1,7 +1,11 @@
 import streamlit as st
 import time
 import streamlit.components.v1 as components
-from database import inserisci_ticket, get_notifiche, aggiorna_posizione
+from database import inserisci_ticket, get_notifiche
+
+# ==============================
+# AUTISTA - Gestione Code Realtime
+# ==============================
 
 def main():
     st.set_page_config(
@@ -10,7 +14,7 @@ def main():
         layout="wide"
     )
 
-    # === STILE PERSONALIZZATO ===
+    # --- STILE ---
     st.markdown("""
     <style>
     .stApp {
@@ -43,62 +47,63 @@ def main():
     st.title("🚛 Pagina Autisti")
     st.write("Compila i tuoi dati e ricevi aggiornamenti dall'ufficio in tempo reale.")
 
-    # === STATO SESSIONE ===
+    # --- SESSION STATE ---
     if "ticket_id" not in st.session_state:
         st.session_state.ticket_id = None
     if "modalita" not in st.session_state:
         st.session_state.modalita = "iniziale"
-    if "posizione_attuale" not in st.session_state:
-        st.session_state.posizione_attuale = (0.0, 0.0)
     if "last_refresh_time" not in st.session_state:
         st.session_state.last_refresh_time = 0
 
-    # === GEOLOCALIZZAZIONE ===
-    geo_js = """
+    # --- GEOLOCALIZZAZIONE VIA API ---
+    # ⚠️ Sostituisci l’URL sotto con quello della tua app Render (backend FastAPI)
+    BACKEND_URL = "https://gestione-code-realtime.onrender.com/update_position"
+
+    geo_js = f"""
     <script>
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-            pos => {
+    async function inviaPosizione() {{
+        if (navigator.geolocation) {{
+            navigator.geolocation.watchPosition(async (pos) => {{
                 const lat = pos.coords.latitude;
                 const lon = pos.coords.longitude;
-                const now = new Date().toISOString();
-                window.parent.postMessage(
-                    {type: "streamlit:setSessionState", key: "gps_data", value: {lat: lat, lon: lon, time: now}},
-                    "*"
-                );
-            },
-            err => console.warn("Errore GPS: " + err.message),
-            {enableHighAccuracy: true, maximumAge: 5000, timeout: 10000}
-        );
-    } else {
-        alert("Geolocalizzazione non supportata dal browser.");
-    }
+                const ticket_id = localStorage.getItem("ticket_id");
+                if (!ticket_id) return;
+                const payload = {{
+                    ticket_id: ticket_id,
+                    lat: lat,
+                    lon: lon
+                }};
+                try {{
+                    await fetch("https://gestione-code-realtime.onrender.com", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify(payload)
+                    }});
+                    console.log("📡 Posizione inviata:", lat, lon);
+                }} catch (err) {{
+                    console.error("Errore invio posizione:", err);
+                }}
+            }},
+            (err) => console.warn("Errore GPS:", err.message),
+            {{ enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }});
+        }} else {{
+            alert("Geolocalizzazione non supportata dal browser.");
+        }}
+    }}
+    inviaPosizione();
     </script>
     """
+
     components.html(geo_js, height=0)
+    st.info("📡 Geolocalizzazione attiva: in attesa di coordinate GPS...")
 
-    gps_data = st.session_state.get("gps_data")
-    if gps_data:
-        lat = gps_data.get("lat", 0.0)
-        lon = gps_data.get("lon", 0.0)
-        st.session_state.posizione_attuale = (lat, lon)
-        st.success(f"📡 Posizione aggiornata: {lat:.5f}, {lon:.5f}")
-        # aggiorna la posizione nel DB se ticket attivo
-        if st.session_state.ticket_id:
-            try:
-                aggiorna_posizione(st.session_state.ticket_id, lat, lon)
-            except Exception as e:
-                st.warning(f"Errore aggiornamento posizione: {e}")
-    else:
-        st.info("⏳ In attesa della posizione GPS...")
-
-    # === REFRESH AUTOMATICO ===
+    # --- REFRESH AUTOMATICO OGNI 10s ---
     refresh_interval = 10
     if time.time() - st.session_state.last_refresh_time > refresh_interval:
         st.session_state.last_refresh_time = time.time()
         st.rerun()
 
-    # === LOGICA MODALITÀ ===
+    # --- FLUSSO INTERFACCIA ---
     if st.session_state.modalita == "iniziale":
         st.info("Clicca su **Avvia** per creare una nuova richiesta di carico/scarico.")
         if st.button("🚀 Avvia"):
@@ -132,12 +137,16 @@ def main():
                         destinazione=destinazione,
                         produttore=produttore,
                         rimorchio=int(rimorchio),
-                        lat=st.session_state.posizione_attuale[0],
-                        lon=st.session_state.posizione_attuale[1]
+                        lat=0.0,  # iniziale, poi aggiornato da JS
+                        lon=0.0
                     )
                     st.session_state.ticket_id = ticket_id
                     st.session_state.modalita = "notifiche"
                     st.success("✅ Ticket inviato all'ufficio! Attendi notifiche.")
+                    st.markdown(
+                        f"<script>localStorage.setItem('ticket_id', '{ticket_id}');</script>",
+                        unsafe_allow_html=True
+                    )
                     st.rerun()
                 except Exception as e:
                     st.error(f"Errore invio ticket: {e}")
@@ -176,6 +185,7 @@ def main():
         if col2.button("❌ Chiudi ticket locale"):
             st.session_state.ticket_id = None
             st.session_state.modalita = "iniziale"
+            st.markdown("<script>localStorage.removeItem('ticket_id');</script>", unsafe_allow_html=True)
             st.rerun()
 
 
