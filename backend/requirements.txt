@@ -4,6 +4,4 @@ uvicorn[standard]==0.23.2
 pandas==2.1.1
 requests==2.32.0
 supabase==2.7.1
-Python Version: 3.11.8
-
-
+python-dotenv==1.0.0
