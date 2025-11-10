@@ -60,25 +60,39 @@ def main():
     st.subheader("📍 Posizione GPS in tempo reale")
 
     geo_js = """
-    <script>
-    function sendCoords(lat, lon) {
-        const data = {lat: lat, lon: lon};
-        window.parent.postMessage({isStreamlitMessage: true, type: 'streamlit:setComponentValue', value: data}, "*");
-    }
+<script>
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+        pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const now = new Date().toISOString();
+            window.parent.postMessage(
+                {type: "streamlit:setSessionState", key: "gps_data", value: {lat: lat, lon: lon, time: now}},
+                "*"
+            );
+        },
+        err => console.warn("Errore GPS: " + err.message),
+        {enableHighAccuracy: true, maximumAge: 5000, timeout: 10000}
+    );
+} else {
+    alert("Geolocalizzazione non supportata dal browser.");
+}
+</script>
+"""
 
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-            pos => sendCoords(pos.coords.latitude, pos.coords.longitude),
-            err => alert("Errore GPS: " + err.message),
-            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-        );
-    } else {
-        alert("Geolocalizzazione non supportata dal browser.");
-    }
-    </script>
-    """
-    coords = components.html(geo_js, height=0, key="geo_component")
-    coords_data = st.session_state.get("geo_component")
+components.html(geo_js, height=0)
+
+# Recupera i dati GPS dalla sessione
+gps_data = st.session_state.get("gps_data")
+if gps_data:
+    lat = gps_data.get("lat", 0.0)
+    lon = gps_data.get("lon", 0.0)
+    st.session_state.posizione_attuale = (lat, lon)
+    st.success(f"📡 Posizione aggiornata: {lat:.5f}, {lon:.5f}")
+else:
+    st.info("⏳ In attesa della posizione GPS...")
+
 
     if coords_data:
         try:
