@@ -5,7 +5,7 @@ import requests
 from database import inserisci_ticket, get_notifiche, aggiorna_posizione
 
 # 🔧 CONFIGURA URL DEL BACKEND FASTAPI (deve essere HTTPS)
-BACKEND_URL = "https://gestione-code-realtime.onrender.com/update_position"  # <-- cambia con il tuo dominio Render HTTPS
+BACKEND_URL = "https://gestione-code-realtime.onrender.com"  # <-- cambia con il tuo dominio Render HTTPS
 
 def main():
     st.set_page_config(
