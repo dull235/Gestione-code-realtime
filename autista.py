@@ -57,7 +57,7 @@ def main():
 
     # --- GEOLOCALIZZAZIONE VIA API ---
     # ⚠️ Sostituisci l’URL sotto con quello della tua app Render (backend FastAPI)
-    BACKEND_URL = "https://gestione-code-realtime.onrender.com/update_position"
+    BACKEND_URL = "https://gestione-code-realtime-1.onrender.com"
 
     geo_js = f"""
     <script>
