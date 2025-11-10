@@ -1,6 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import time
+import requests
 from database import inserisci_ticket, get_notifiche, aggiorna_posizione
+
+# 🔧 CONFIGURA URL DEL BACKEND FASTAPI (deve essere HTTPS)
+BACKEND_URL = "https://gestione-code-realtime.onrender.com/update_position"  # <-- cambia con il tuo dominio Render HTTPS
 
 def main():
     st.set_page_config(
@@ -51,53 +56,59 @@ def main():
     if "last_refresh_time" not in st.session_state:
         st.session_state.last_refresh_time = 0
 
-    # --- Ottieni lat/lon dai parametri della query string ---
-    params = st.query_params
-    if "lat" in params and "lon" in params:
-        try:
-            lat = float(params["lat"])
-            lon = float(params["lon"])
-            st.session_state.posizione_attuale = (lat, lon)
-        except Exception:
-            pass
-
     # --- Refresh automatico ogni 10 secondi ---
     refresh_interval = 10  # secondi
     if time.time() - st.session_state.last_refresh_time > refresh_interval:
         st.session_state.last_refresh_time = time.time()
         st.rerun()
 
-    # --- Geolocalizzazione via JS se mancante ---
-    st.write("DEBUG:", st.session_state.posizione_attuale)
-    if st.session_state.posizione_attuale == (0.0, 0.0):
-        st.markdown("**📍 Posizione attuale:** Non rilevata")
-        st.markdown("""
+    # --- Geolocalizzazione via componente HTML ---
+    if st.session_state.ticket_id:  # attiva solo se c'è un ticket attivo
+        st.subheader("📍 Geolocalizzazione in tempo reale")
+
+        geo_html = """
         <script>
-        navigator.geolocation.getCurrentPosition(
-            function(pos) {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                const query = new URLSearchParams(window.location.search);
-                query.set("lat", lat);
-                query.set("lon", lon);
-                window.location.search = query.toString();
-            },
-            function(err) {
-                console.warn("Errore GPS: " + err.message);
-                alert("⚠️ Errore nel rilevare la posizione: " + err.message);
-            }
-        );
+        const sendLocation = (lat, lon) => {
+            const streamlitDoc = window.parent.document;
+            const input = streamlitDoc.getElementById("geo-coords");
+            input.value = `${lat},${lon}`;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                pos => sendLocation(pos.coords.latitude, pos.coords.longitude),
+                err => console.warn("⚠️ Errore GPS:", err.message),
+                { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+            );
+        } else {
+            alert("Il tuo browser non supporta la geolocalizzazione.");
+        }
         </script>
-        """, unsafe_allow_html=True)
-    else:
-        lat, lon = st.session_state.posizione_attuale
-        st.markdown(f"**📍 Posizione attuale:** Lat {lat:.6f}, Lon {lon:.6f}")
-        # Aggiorna posizione nel DB se ticket attivo
-        if st.session_state.ticket_id:
+        <input type="text" id="geo-coords" style="display:none"/>
+        """
+        components.html(geo_html, height=0)
+
+        geo_input = st.text_input("", key="geo-coords", label_visibility="collapsed")
+        if geo_input:
             try:
-                aggiorna_posizione(st.session_state.ticket_id, lat, lon)
-            except Exception as e:
-                st.warning(f"Errore aggiornamento posizione: {e}")
+                lat, lon = map(float, geo_input.split(","))
+                st.session_state.posizione_attuale = (lat, lon)
+                st.success(f"Posizione aggiornata: {lat:.5f}, {lon:.5f}")
+
+                # Aggiorna posizione su Supabase via FastAPI
+                try:
+                    requests.post(BACKEND_URL, json={
+                        "ticket_id": st.session_state.ticket_id,
+                        "lat": lat,
+                        "lon": lon
+                    })
+                except Exception as e:
+                    st.warning(f"Errore invio posizione al server: {e}")
+            except:
+                st.warning("Errore nel parsing della posizione.")
+    else:
+        st.info("Attiva un ticket per iniziare il monitoraggio GPS.")
 
     # --- Logica modalità ---
     if st.session_state.modalita == "iniziale":
@@ -178,6 +189,7 @@ def main():
             st.session_state.ticket_id = None
             st.session_state.modalita = "iniziale"
             st.rerun()
+
 
 if __name__ == "__main__":
     main()
