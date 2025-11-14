@@ -32,100 +32,99 @@ def main():
     # --- Stile CSS personalizzato + overlay footer ---
     st.markdown("""
     <style>
-    /* 🌄 SFONDO E STILE GENERALE */
+
+    /* 🔥 NASCONDI TUTTO STREAMLIT (100% effettivo su Render) */
+    #MainMenu {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+
+    [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important; height: 0 !important; display: none !important;}
+    [data-testid="stActionButton"] {visibility: hidden !important; display: none !important;}
+    [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
+
+    .css-1rs6os.edgvbvh3,
+    .css-yemjua,
+    .stApp > div > div:nth-child(3) {
+        visibility: hidden !important;
+        display: none !important;
+    }
+
+    /* 🔵 Sfondi */
     .stApp {
         background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(179, 217, 255, 0.6)),
                     url("https://raw.githubusercontent.com/dull235/Gestione-code/main/static/sfondo.png");
-        background-repeat: no-repeat;
-        background-position: center;
         background-size: cover;
+        background-position: center;
         min-height: 100vh;
         padding: 0 !important;
         margin: 0 !important;
     }
 
-    /* CONTENUTO PRINCIPALE */
+    /* Contenitore */
     .main > div {
         background-color: rgba(173, 216, 230, 0.85) !important;
         padding: 20px;
         border-radius: 10px;
         color: black !important;
-        border: 1px solid rgba(0,0,0,0.1);
-        margin: 10px auto !important;
         max-width: 600px;
+        margin: 10px auto !important;
     }
 
-    /* BOTTONI E INPUT */
+    /* Pulsanti */
     .stButton button {
-        background-color: #1976d2;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        font-weight: 600;
+        background-color: #1976d2 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-weight: 600 !important;
     }
+
+    /* Input */
     div[data-baseweb="input"] > div > input,
     div[data-baseweb="textarea"] > textarea,
     input, textarea, select {
-        background-color: #ffffff;
-        color: #000000;
+        background-color: white !important;
+        color: black !important;
         border: 1px solid black !important;
-        border-radius: 5px;
-        padding: 5px;
-        font-weight: 500 !important;
+        border-radius: 5px !important;
+        padding: 5px !important;
     }
+
+    /* Radio */
     div[role="radiogroup"] > label {
-        background-color: #ffffff !important;
-        color: #000000 !important;
+        background-color: white !important;
         border: 1px solid black;
+        color: black !important;
         border-radius: 5px;
         padding: 5px;
         margin-right: 5px;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
+        transition: 0.2s;
     }
     div[role="radiogroup"] > label:has(input:checked) {
         background-color: #e3f2fd !important;
         border: 2px solid #1976d2 !important;
-        color: #000000 !important;
         font-weight: 600 !important;
     }
-    div[data-baseweb="notification"] {
-        background-color: #fff9c4 !important;
-        color: #000 !important;
-        border: 1px solid #fbc02d !important;
-    }
+
+    /* Notifiche */
     .notifica {
-        background-color: rgba(255, 255, 255, 0.9);
+        background-color: rgba(255,255,255,0.9);
         padding: 10px 15px;
         border-left: 6px solid #1976d2;
         margin-bottom: 10px;
         border-radius: 6px;
     }
 
-    /* NASCONDI ELEMENTI STREAMLIT (toolbar, sidebar, header) */
-    [data-testid="stToolbar"],
-    header,
-    [data-testid="stDecoration"],
-    [data-testid="stHeader"],
-    [data-testid="stActionButton"],
-    [data-testid="stSidebarNav"],
-    [data-testid="stSidebarHeader"] {
-        visibility: hidden !important;
-        height: 0 !important;
-        display: none !important;
-    }
-
-    /* LOGO PERSONALIZZATO IN ALTO */
+    /* Logo splash */
     .custom-logo {
         display: flex;
         justify-content: center;
-        align-items: center;
-        margin-bottom: 20px;
         margin-top: 20px;
+        margin-bottom: 15px;
     }
     .custom-logo img {
         height: 100px;
-        width: auto;
         border-radius: 15px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
@@ -133,31 +132,15 @@ def main():
         .custom-logo img { height: 70px; }
     }
 
-    /* OVERLAY FOOTER - COPRE IL FOOTER, NON CLICCABILE */
-    [data-testid="stFooter"] {
-        position: fixed !important;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 50px;
-        z-index: 9999;
-        pointer-events: none;
-        background: rgba(255,255,255,0.95);
-    }
-    @media (max-width: 768px) {
-        [data-testid="stFooter"] {
-            height: 80px !important;
-            pointer-events: none;
-            background: rgba(255,255,255,0.95) !important;
-        }
-    }
     </style>
 
-    <!-- LOGO IN ALTO -->
+    <!-- LOGO SUPERIORE -->
     <div class="custom-logo">
-        <img src="https://raw.githubusercontent.com/dull235/Gestione-code/main/static/icon.png" alt="Logo Gestione Code">
+        <img src="https://raw.githubusercontent.com/dull235/Gestione-code/main/static/icon.png">
     </div>
+
     """, unsafe_allow_html=True)
+
 
     # --- Contenuto app ---
     st.title("🚛 Pagina Autisti")
