@@ -1,154 +1,287 @@
 import streamlit as st
-import requests
-import time
-import streamlit.components.v1 as components
+from database import inserisci_ticket, get_notifiche, aggiorna_posizione
+from streamlit_autorefresh import st_autorefresh
+import base64
 
-# =========================
-# CONFIGURAZIONE BASE
-# =========================
-st.set_page_config(page_title="Tracker Autista", page_icon="🚚", layout="centered")
+# Compatibilità Streamlit vecchie versioni
+if not hasattr(st, "rerun"):
+    st.rerun = st.experimental_rerun
 
-API_URL = "https://gestione-code-realtime.onrender.com"
-REFRESH_INTERVAL = 10  # secondi
+# --- Funzione per riprodurre suono locale ---
+def play_local_sound(file_path):
+    with open(file_path, "rb") as f:
+        audio_bytes = f.read()
+    audio_base64 = base64.b64encode(audio_bytes).decode()
+    st.markdown(f"""
+    <audio autoplay>
+        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+    </audio>
+    """, unsafe_allow_html=True)
 
-# =========================
-# INIZIALIZZAZIONE SESSIONE
-# =========================
-if "posizione_attuale" not in st.session_state:
-    st.session_state.posizione_attuale = (0.0, 0.0)
-if "ticket_id" not in st.session_state:
-    st.session_state.ticket_id = None
-if "last_refresh_time" not in st.session_state:
-    st.session_state.last_refresh_time = time.time()
 
-# =========================
-# FUNZIONI DI SUPPORTO
-# =========================
-def apri_ticket(nome_autista):
-    try:
-        r = requests.post(f"{API_URL}/crea_ticket", json={"nome_autista": nome_autista})
-        if r.status_code == 200:
-            st.session_state.ticket_id = r.json().get("ticket_id")
-            return st.session_state.ticket_id
-        else:
-            st.error("Errore nel creare il ticket.")
-    except Exception as e:
-        st.error(f"Errore di connessione: {e}")
-
-def aggiorna_posizione(ticket_id, lat, lon):
-    try:
-        r = requests.post(f"{API_URL}/aggiorna_posizione", json={
-            "ticket_id": ticket_id,
-            "lat": lat,
-            "lon": lon
-        })
-        if r.status_code != 200:
-            st.warning("⚠️ Impossibile aggiornare la posizione sul server.")
-    except Exception as e:
-        st.warning(f"Errore aggiornamento posizione: {e}")
-
-# =========================
-# UI PRINCIPALE
-# =========================
-st.title("🚚 Tracker Autista")
-st.markdown("Questa app invia la posizione dell’autista in tempo reale all’ufficio.")
-
-nome_autista = st.text_input("👤 Inserisci il tuo nome:")
-
-# --- Creazione ticket ---
-if st.button("🎫 Apri Ticket"):
-    if nome_autista.strip():
-        ticket = apri_ticket(nome_autista)
-        if ticket:
-            st.success(f"✅ Ticket creato correttamente (ID: {ticket})")
-            st.rerun()
-    else:
-        st.warning("Inserisci il tuo nome prima di aprire il ticket.")
-
-# --- Mostra ticket aperto ---
-if st.session_state.ticket_id:
-    st.info(f"🎟️ Ticket attivo: {st.session_state.ticket_id}")
-
-# --- Lettura coordinate da URL (inviate da JS) ---
-query_params = st.query_params
-if "lat" in query_params and "lon" in query_params:
-    try:
-        lat = float(query_params["lat"])
-        lon = float(query_params["lon"])
-        st.session_state.posizione_attuale = (lat, lon)
-        # Aggiorna posizione sul server
-        if st.session_state.ticket_id:
-            aggiorna_posizione(st.session_state.ticket_id, lat, lon)
-    except Exception:
-        pass
-
-# =========================
-# GEOLOCALIZZAZIONE
-# =========================
-if st.session_state.posizione_attuale == (0.0, 0.0):
-    st.markdown("**📡 Geolocalizzazione attiva:** in attesa di coordinate GPS...")
-
-    components.html(
-        """
-        <script>
-        (function() {
-            console.log("🔍 Tentativo di ottenere coordinate GPS...");
-
-            function inviaPosizione(lat, lon) {
-                console.log("✅ Coordinate trovate:", lat, lon);
-                const query = new URLSearchParams(window.location.search);
-                query.set("lat", lat);
-                query.set("lon", lon);
-                window.location.search = query.toString();
-            }
-
-            function success(pos) {
-                inviaPosizione(pos.coords.latitude, pos.coords.longitude);
-            }
-
-            function error(err) {
-                console.error("❌ Errore geolocalizzazione:", err);
-                const msg = document.createElement('p');
-                msg.style.color = 'red';
-                msg.innerText = "⚠️ Errore GPS: " + err.message;
-                document.body.appendChild(msg);
-
-                // Coordinate di test (Milano)
-                if (window.location.search.indexOf("lat=") === -1) {
-                    console.log("🌍 Uso coordinate simulate (Milano)...");
-                    inviaPosizione(45.4642, 9.19);
-                }
-            }
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(success, error, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                });
-            } else {
-                const msg = document.createElement('p');
-                msg.style.color = 'red';
-                msg.innerText = "❌ Geolocalizzazione non supportata dal browser.";
-                document.body.appendChild(msg);
-            }
-        })();
-        </script>
-        """,
-        height=0,
+def main():
+    st.set_page_config(
+        page_title="Gestione Code - Autisti",
+        page_icon="https://raw.githubusercontent.com/dull235/Gestione-code/main/static/icon.png",
+        layout="wide"
     )
-else:
-    lat, lon = st.session_state.posizione_attuale
-    st.success(f"**📍 Posizione attuale:** Lat {lat:.6f}, Lon {lon:.6f}")
-    if st.session_state.ticket_id:
-        try:
-            aggiorna_posizione(st.session_state.ticket_id, lat, lon)
-        except Exception as e:
-            st.warning(f"Errore aggiornamento posizione: {e}")
 
-# =========================
-# REFRESH PERIODICO
-# =========================
-if time.time() - st.session_state.last_refresh_time > REFRESH_INTERVAL:
-    st.session_state.last_refresh_time = time.time()
-    st.rerun()
+    # --- Aggiornamento automatico ogni 10 secondi ---
+    st_autorefresh(interval=10000, key="refresh_autista")
+
+    # --- Stile CSS personalizzato + overlay footer ---
+    st.markdown("""
+    <style>
+    /* 🌄 SFONDO E STILE GENERALE */
+    .stApp {
+        background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(179, 217, 255, 0.6)),
+                    url("https://raw.githubusercontent.com/dull235/Gestione-code/main/static/sfondo.png");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: cover;
+        min-height: 100vh;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* CONTENUTO PRINCIPALE */
+    .main > div {
+        background-color: rgba(173, 216, 230, 0.85) !important;
+        padding: 20px;
+        border-radius: 10px;
+        color: black !important;
+        border: 1px solid rgba(0,0,0,0.1);
+        margin: 10px auto !important;
+        max-width: 600px;
+    }
+
+    /* BOTTONI E INPUT */
+    .stButton button {
+        background-color: #1976d2;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+    }
+    div[data-baseweb="input"] > div > input,
+    div[data-baseweb="textarea"] > textarea,
+    input, textarea, select {
+        background-color: #ffffff;
+        color: #000000;
+        border: 1px solid black !important;
+        border-radius: 5px;
+        padding: 5px;
+        font-weight: 500 !important;
+    }
+    div[role="radiogroup"] > label {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid black;
+        border-radius: 5px;
+        padding: 5px;
+        margin-right: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+    }
+    div[role="radiogroup"] > label:has(input:checked) {
+        background-color: #e3f2fd !important;
+        border: 2px solid #1976d2 !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }
+    div[data-baseweb="notification"] {
+        background-color: #fff9c4 !important;
+        color: #000 !important;
+        border: 1px solid #fbc02d !important;
+    }
+    .notifica {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px 15px;
+        border-left: 6px solid #1976d2;
+        margin-bottom: 10px;
+        border-radius: 6px;
+    }
+
+    /* NASCONDI ELEMENTI STREAMLIT (toolbar, sidebar, header) */
+    [data-testid="stToolbar"],
+    header,
+    [data-testid="stDecoration"],
+    [data-testid="stHeader"],
+    [data-testid="stActionButton"],
+    [data-testid="stSidebarNav"],
+    [data-testid="stSidebarHeader"] {
+        visibility: hidden !important;
+        height: 0 !important;
+        display: none !important;
+    }
+
+    /* LOGO PERSONALIZZATO IN ALTO */
+    .custom-logo {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+        margin-top: 20px;
+    }
+    .custom-logo img {
+        height: 100px;
+        width: auto;
+        border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    @media (max-width: 600px) {
+        .custom-logo img { height: 70px; }
+    }
+
+    /* OVERLAY FOOTER - COPRE IL FOOTER, NON CLICCABILE */
+    [data-testid="stFooter"] {
+        position: fixed !important;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 50px;
+        z-index: 9999;
+        pointer-events: none;
+        background: rgba(255,255,255,0.95);
+    }
+    @media (max-width: 768px) {
+        [data-testid="stFooter"] {
+            height: 80px !important;
+            pointer-events: none;
+            background: rgba(255,255,255,0.95) !important;
+        }
+    }
+    </style>
+
+    <!-- LOGO IN ALTO -->
+    <div class="custom-logo">
+        <img src="https://raw.githubusercontent.com/dull235/Gestione-code/main/static/icon.png" alt="Logo Gestione Code">
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- Contenuto app ---
+    st.title("🚛 Pagina Autisti")
+    st.write("Compila i tuoi dati e ricevi aggiornamenti dall'ufficio in tempo reale.")
+
+    # --- Stato sessione ---
+    if "ticket_id" not in st.session_state:
+        st.session_state.ticket_id = None
+    if "modalita" not in st.session_state:
+        st.session_state.modalita = "iniziale"
+    if "posizione_attuale" not in st.session_state:
+        st.session_state.posizione_attuale = (0.0, 0.0)
+    if "ultima_notifica_id" not in st.session_state:
+        st.session_state.ultima_notifica_id = None
+
+    # --- Ottieni lat/lon dalla query string ---
+    params = st.query_params
+    if "lat" in params and "lon" in params:
+        try:
+            lat = float(params["lat"])
+            lon = float(params["lon"])
+            st.session_state.posizione_attuale = (lat, lon)
+        except Exception:
+            pass
+
+    # --- Se la posizione non è disponibile ---
+    if st.session_state.posizione_attuale == (0.0, 0.0):
+        gps_url = "https://dull235.github.io/gps-sender/gps_sender.html"
+        st.warning("📡 Posizione non rilevata.")
+        st.markdown(f"[👉 Clicca qui per attivare il GPS]({gps_url})", unsafe_allow_html=True)
+    else:
+        lat, lon = st.session_state.posizione_attuale
+        st.markdown(f"**📍 Posizione attuale:** Lat {lat:.6f}, Lon {lon:.6f}")
+        if st.session_state.ticket_id:
+            try:
+                aggiorna_posizione(st.session_state.ticket_id, lat, lon)
+            except Exception as e:
+                st.warning(f"Errore aggiornamento posizione: {e}")
+
+    # --- Modalità iniziale ---
+    if st.session_state.modalita == "iniziale":
+        st.info("Clicca su **Avvia** per creare una nuova richiesta di carico/scarico.")
+        if st.button("🚀 Avvia"):
+            st.session_state.modalita = "form"
+            st.rerun()
+
+    # --- Form ---
+    elif st.session_state.modalita == "form":
+        st.subheader("📋 Compila i tuoi dati")
+        nome = st.text_input("Nome e Cognome", value=st.session_state.get("nome", ""), key="nome")
+        azienda = st.text_input("Azienda", value=st.session_state.get("azienda", ""), key="azienda")
+        targa = st.text_input("Targa Motrice", value=st.session_state.get("targa", ""), key="targa")
+        rimorchio = st.checkbox("Hai un rimorchio?", value=st.session_state.get("rimorchio", False), key="rimorchio")
+        if rimorchio:
+            targa_rim = st.text_input("Targa Rimorchio", value=st.session_state.get("targa_rim", ""), key="targa_rim")
+        else:
+            st.session_state["targa_rim"] = ""
+        tipo = st.radio("Tipo Operazione", ["Carico", "Scarico"], key="tipo")
+        if tipo == "Carico":
+            destinazione = st.text_input("Destinazione", value=st.session_state.get("destinazione", ""), key="destinazione")
+            st.session_state["produttore"] = ""
+        else:
+            produttore = st.text_input("Produttore", value=st.session_state.get("produttore", ""), key="produttore")
+            st.session_state["destinazione"] = ""
+        if st.button("📨 Invia Richiesta"):
+            if not st.session_state.nome or not st.session_state.azienda or not st.session_state.targa:
+                st.error("⚠️ Compila tutti i campi obbligatori prima di inviare.")
+            else:
+                try:
+                    ticket_id = inserisci_ticket(
+                        nome=st.session_state.nome,
+                        azienda=st.session_state.azienda,
+                        targa=st.session_state.targa,
+                        tipo=st.session_state.tipo,
+                        destinazione=st.session_state.get("destinazione", ""),
+                        produttore=st.session_state.get("produttore", ""),
+                        rimorchio_targa=st.session_state.get("targa_rim", ""),
+                        rimorchio=int(st.session_state.rimorchio),
+                        lat=st.session_state.posizione_attuale[0],
+                        lon=st.session_state.posizione_attuale[1]
+                    )
+                    st.session_state.ticket_id = ticket_id
+                    st.session_state.modalita = "notifiche"
+                    st.success("✅ Ticket inviato all'ufficio! Attendi notifiche.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Errore invio ticket: {e}")
+
+    # --- Modalità notifiche ---
+    elif st.session_state.modalita == "notifiche":
+        ticket_id = st.session_state.ticket_id
+        st.success(f"📦 Ticket attivo ID: {ticket_id}")
+        st.subheader("📢 Notifiche ricevute")
+        st.markdown("<hr>", unsafe_allow_html=True)
+        try:
+            notifiche = get_notifiche(ticket_id)
+        except Exception as e:
+            st.error(f"Errore recupero notifiche: {e}")
+            notifiche = []
+        if notifiche:
+            ultima = notifiche[0]
+            testo = ultima.get("Testo") if isinstance(ultima, dict) else ultima[0]
+            data = ultima.get("Data") if isinstance(ultima, dict) else ultima[1]
+            if st.session_state.ultima_notifica_id != data:
+                st.session_state.ultima_notifica_id = data
+                play_local_sound("notifica.mp3")
+            st.markdown(f"### 🕓 Ultimo aggiornamento: `{data}`")
+            st.markdown(f"#### 💬 **{testo}**")
+            st.divider()
+            st.write("🔁 Storico ultime notifiche:")
+            for n in notifiche[1:5]:
+                testo_n = n.get("Testo") if isinstance(n, dict) else n[0]
+                data_n = n.get("Data") if isinstance(n, dict) else n[1]
+                st.markdown(f"<div class='notifica'>🕓 <b>{data_n}</b><br>{testo_n}</div>", unsafe_allow_html=True)
+        else:
+            st.info("Nessuna notifica disponibile al momento.")
+        col1, col2 = st.columns(2)
+        if col1.button("🔄 Aggiorna ora"):
+            st.rerun()
+        if col2.button("❌ Chiudi ticket locale"):
+            st.session_state.ticket_id = None
+            st.session_state.modalita = "iniziale"
+            st.rerun()
+
+
+if __name__ == "__main__":
+    main()
