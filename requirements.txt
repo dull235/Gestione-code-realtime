@@ -2,3 +2,4 @@ streamlit
 streamlit-autorefresh
 pymysql
 python-dotenv
+supabase
