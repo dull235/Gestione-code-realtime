@@ -52,7 +52,7 @@ def main():
 
     /* 🔵 Sfondi */
     .stApp {
-        background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(179, 217, 255, 0.6));
+        background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(255, 255, 255, 0.8));
         background-size: cover;
         background-position: center;
         min-height: 100vh;
