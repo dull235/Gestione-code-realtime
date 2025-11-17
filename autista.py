@@ -52,8 +52,7 @@ def main():
 
     /* 🔵 Sfondi */
     .stApp {
-        background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(179, 217, 255, 0.6)),
-                    url("https://raw.githubusercontent.com/dull235/Gestione-code/main/static/sfondo.png");
+        background: linear-gradient(rgba(179, 217, 255, 0.6), rgba(179, 217, 255, 0.6));
         background-size: cover;
         background-position: center;
         min-height: 100vh;
